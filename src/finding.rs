@@ -128,7 +128,7 @@ mod tests {
             column: 1,
             end_line: line,
             end_column: 2,
-            redacted: "ab??yz".to_owned(),
+            redacted: "ab\u{2022}\u{2022}yz".to_owned(),
             message: "safe message".to_owned(),
         }
     }
