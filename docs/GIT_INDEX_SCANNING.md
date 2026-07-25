@@ -21,13 +21,14 @@ Use the returned path as the process working directory for subsequent Git calls.
 Execute:
 
 ```text
-git diff --cached --name-only --diff-filter=ACMR -z --no-ext-diff --no-textconv --ignore-submodules=all
+git diff --cached --name-only --diff-filter=ACMR -z --no-ext-diff --no-textconv --ignore-submodules=dirty
 ```
 
 Properties:
 
 - `--cached` compares the index with `HEAD` or the empty tree on an initial commit;
 - `A`, `C`, `M`, and `R` include content that exists in the new index;
+- `--ignore-submodules=dirty` keeps staged gitlinks visible for explicit skip accounting while ignoring unstaged submodule dirt;
 - deleted files are omitted;
 - `-z` returns verbatim NUL-terminated paths.
 
@@ -75,7 +76,7 @@ The bytes returned here are the only content bytes used for staged detection.
 For each staged path, execute:
 
 ```text
-git diff --cached --unified=0 --no-color --no-ext-diff --no-textconv --ignore-submodules=all -- <path>
+git diff --cached --unified=0 --no-color --no-ext-diff --no-textconv --ignore-submodules=dirty -- <path>
 ```
 
 Read output line by line only to find hunk header lines beginning with `@@ `.
