@@ -138,7 +138,19 @@
   - private_key;
   - connection_string.
 - Assignment separators include `=`, `:`, and common quoted configuration syntax.
-- Apply the score in `PLAN.md` exactly.
+- Score candidates as follows:
+  - sensitive key name: `+40`;
+  - length at least 12: `+10`;
+  - length at least 20: an additional `+10`;
+  - entropy at least 3.5: `+15`;
+  - entropy at least 4.2: an additional `+10`;
+  - at least three character classes: `+10`;
+  - quoted literal: `+5`;
+  - documentation or fixture path: `-15`.
+- Severity thresholds:
+  - score at least 70: `high`;
+  - score from 50 through 69: `medium`;
+  - score below 50: no finding.
 - Reject placeholders and references before scoring.
 
 ### `suspicious-file-path`
