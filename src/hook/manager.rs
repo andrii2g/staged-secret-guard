@@ -5,7 +5,10 @@ use std::{
 
 use thiserror::Error;
 
-use crate::{git::client::{GitClient, GitError}, report};
+use crate::{
+    git::client::{GitClient, GitError},
+    report,
+};
 
 const MARKER_PREFIX: &str = "# Managed by secret-guard";
 const MARKER: &str = "# Managed by secret-guard (version 1)";
@@ -56,7 +59,10 @@ pub struct HookManager {
 
 impl HookManager {
     pub fn new(client: &GitClient, executable: &Path) -> Result<Self, HookError> {
-        let path = client.git_path(&["rev-parse", "--git-path", "hooks/pre-commit"], "rev-parse --git-path")?;
+        let path = client.git_path(
+            &["rev-parse", "--git-path", "hooks/pre-commit"],
+            "rev-parse --git-path",
+        )?;
         let executable = posix_executable_path(executable)?;
         let quoted = quote_posix(&executable);
         let template = format!("#!/bin/sh\n{MARKER}\nexec {quoted} scan --staged\n");
@@ -222,7 +228,9 @@ pub enum HookError {
     },
     #[error("current executable path is not representable as UTF-8")]
     ExecutablePathNotUtf8,
-    #[error("refusing to overwrite unrelated or modified hook at {path}. Chain manually with:\n{snippet}")]
+    #[error(
+        "refusing to overwrite unrelated or modified hook at {path}. Chain manually with:\n{snippet}"
+    )]
     Conflict { path: String, snippet: String },
     #[error("refusing to uninstall unrelated or modified hook at {0}")]
     RefuseUninstall(String),
@@ -240,10 +248,20 @@ mod tests {
 
     #[test]
     fn classifies_stale_modified_and_unrelated_content() {
-        let stale = "#!/bin/sh\n# Managed by secret-guard (version 1)\nexec '/old/path' scan --staged\n";
-        assert_eq!(classify_other(stale.as_bytes()), HookStatus::StaleExecutable);
+        let stale =
+            "#!/bin/sh\n# Managed by secret-guard (version 1)\nexec '/old/path' scan --staged\n";
+        assert_eq!(
+            classify_other(stale.as_bytes()),
+            HookStatus::StaleExecutable
+        );
         let modified = format!("{stale}echo changed\n");
-        assert_eq!(classify_other(modified.as_bytes()), HookStatus::ModifiedManaged);
-        assert_eq!(classify_other(b"#!/bin/sh\necho unrelated\n"), HookStatus::Unrelated);
+        assert_eq!(
+            classify_other(modified.as_bytes()),
+            HookStatus::ModifiedManaged
+        );
+        assert_eq!(
+            classify_other(b"#!/bin/sh\necho unrelated\n"),
+            HookStatus::Unrelated
+        );
     }
 }
