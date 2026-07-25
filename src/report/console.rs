@@ -65,7 +65,10 @@ mod tests {
             mode: ScanMode::Folder,
             root: ".".to_owned(),
             findings: Vec::new(),
-            summary: ScanSummary { files_scanned: 2, ..ScanSummary::default() },
+            summary: ScanSummary {
+                files_scanned: 2,
+                ..ScanSummary::default()
+            },
         };
         assert_eq!(render(&clean, true), "");
         assert!(render(&clean, false).starts_with("Secret Guard: no blocking"));

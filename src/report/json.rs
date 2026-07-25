@@ -1,6 +1,10 @@
 use serde::Serialize;
 
-use crate::{finding::Finding, scan::{ScanResult, file_input::ScanMode}, severity::Severity};
+use crate::{
+    finding::Finding,
+    scan::{ScanResult, file_input::ScanMode},
+    severity::Severity,
+};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,7 +71,11 @@ pub fn render(result: &ScanResult, threshold: Severity) -> Result<Vec<u8>, serde
 #[cfg(test)]
 mod tests {
     use super::render;
-    use crate::{finding::ScanSummary, scan::{ScanResult, file_input::ScanMode}, severity::Severity};
+    use crate::{
+        finding::ScanSummary,
+        scan::{ScanResult, file_input::ScanMode},
+        severity::Severity,
+    };
 
     #[test]
     fn schema_has_stable_version_mode_and_nested_skips() {
@@ -75,7 +83,10 @@ mod tests {
             mode: ScanMode::Folder,
             root: ".".to_owned(),
             findings: Vec::new(),
-            summary: ScanSummary { skipped_binary: 1, ..ScanSummary::default() },
+            summary: ScanSummary {
+                skipped_binary: 1,
+                ..ScanSummary::default()
+            },
         };
         let bytes = render(&result, Severity::High).expect("render JSON");
         let value: serde_json::Value = serde_json::from_slice(&bytes).expect("parse JSON");

@@ -81,7 +81,9 @@ mod tests {
         fs::write(&path, b"old").expect("old report");
         write_atomic(&path, b"new\n").expect("atomic report");
         assert_eq!(fs::read(&path).expect("read report"), b"new\n");
-        let entries = fs::read_dir(directory.path()).expect("read directory").count();
+        let entries = fs::read_dir(directory.path())
+            .expect("read directory")
+            .count();
         assert_eq!(entries, 1);
     }
 }
