@@ -26,10 +26,7 @@ impl GitClient {
         Self::discover_with(current_directory, OsStr::new("git"))
     }
 
-    pub fn discover_with(
-        current_directory: &Path,
-        executable: &OsStr,
-    ) -> Result<Self, GitError> {
+    pub fn discover_with(current_directory: &Path, executable: &OsStr) -> Result<Self, GitError> {
         let mut command = Command::new(executable);
         command
             .current_dir(current_directory)
@@ -61,17 +58,40 @@ impl GitClient {
             "-z",
             "--no-ext-diff",
             "--no-textconv",
-            "--ignore-submodules=all",
+            "--ignore-submodules=dirty",
         ]);
         let output = checked_output(command, "diff --cached --name-only")?;
         parse_nul_paths(&output.stdout)
     }
 
+    pub fn ensure_no_unmerged(&self) -> Result<(), GitError> {
+        let mut command = self.command();
+        command.args(["ls-files", "--unmerged", "-z"]);
+        let output = checked_output(command, "ls-files --unmerged")?;
+        if output.stdout.is_empty() {
+            Ok(())
+        } else {
+            Err(GitError::Unmerged("repository index".to_owned()))
+        }
+    }
+    pub fn rename_only_paths(&self) -> Result<std::collections::HashSet<String>, GitError> {
+        let mut command = self.command();
+        command.args([
+            "diff",
+            "--cached",
+            "--name-status",
+            "-z",
+            "--find-renames",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--ignore-submodules=dirty",
+        ]);
+        let output = checked_output(command, "diff --cached --name-status")?;
+        parse_rename_only_paths(&output.stdout)
+    }
     pub fn index_entry(&self, path: &str) -> Result<IndexEntry, GitError> {
         let mut command = self.command();
-        command
-            .args(["ls-files", "--stage", "-z", "--"])
-            .arg(path);
+        command.args(["ls-files", "--stage", "-z", "--"]).arg(path);
         let output = checked_output(command, "ls-files --stage")?;
         parse_index_entry(&output.stdout, path)
     }
@@ -89,10 +109,11 @@ impl GitClient {
                 "diff",
                 "--cached",
                 "--unified=0",
+                "--find-renames",
                 "--no-color",
                 "--no-ext-diff",
                 "--no-textconv",
-                "--ignore-submodules=all",
+                "--ignore-submodules=dirty",
                 "--",
             ])
             .arg(path);
@@ -100,7 +121,11 @@ impl GitClient {
         changed_ranges::parse(&output.stdout).map_err(GitError::Hunk)
     }
 
-    pub fn git_path(&self, arguments: &[&str], operation: &'static str) -> Result<PathBuf, GitError> {
+    pub fn git_path(
+        &self,
+        arguments: &[&str],
+        operation: &'static str,
+    ) -> Result<PathBuf, GitError> {
         let mut command = self.command();
         command.args(arguments);
         let output = checked_output(command, operation)?;
@@ -126,10 +151,9 @@ impl GitClient {
 }
 
 fn checked_output(mut command: Command, operation: &'static str) -> Result<Output, GitError> {
-    let output = command.output().map_err(|source| GitError::Spawn {
-        operation,
-        source,
-    })?;
+    let output = command
+        .output()
+        .map_err(|source| GitError::Spawn { operation, source })?;
     if !output.status.success() {
         return Err(GitError::Failed {
             operation,
@@ -160,10 +184,45 @@ pub fn parse_nul_paths(bytes: &[u8]) -> Result<Vec<String>, GitError> {
     Ok(paths)
 }
 
+pub fn parse_rename_only_paths(
+    bytes: &[u8],
+) -> Result<std::collections::HashSet<String>, GitError> {
+    let records = bytes
+        .split(|byte| *byte == 0)
+        .filter(|record| !record.is_empty())
+        .collect::<Vec<_>>();
+    let mut rename_only = std::collections::HashSet::new();
+    let mut index = 0;
+    while index < records.len() {
+        let status = std::str::from_utf8(records[index])
+            .map_err(|_| GitError::InvalidOutput("change status is not UTF-8"))?;
+        index += 1;
+        if status.starts_with('R') || status.starts_with('C') {
+            if index + 1 >= records.len() {
+                return Err(GitError::InvalidOutput("malformed rename status"));
+            }
+            let new_path = std::str::from_utf8(records[index + 1])
+                .map_err(|_| GitError::InvalidOutput("rename path is not UTF-8"))?;
+            if status == "R100" {
+                rename_only.insert(new_path.to_owned());
+            }
+            index += 2;
+        } else {
+            if index >= records.len() {
+                return Err(GitError::InvalidOutput("malformed change status"));
+            }
+            index += 1;
+        }
+    }
+    Ok(rename_only)
+}
 pub fn parse_index_entry(bytes: &[u8], requested_path: &str) -> Result<IndexEntry, GitError> {
     let mut stage_zero = None;
     let mut saw_record = false;
-    for record in bytes.split(|byte| *byte == 0).filter(|record| !record.is_empty()) {
+    for record in bytes
+        .split(|byte| *byte == 0)
+        .filter(|record| !record.is_empty())
+    {
         saw_record = true;
         let tab = record
             .iter()
@@ -230,7 +289,7 @@ pub enum GitError {
 
 #[cfg(test)]
 mod tests {
-    use super::{GitError, parse_index_entry, parse_nul_paths};
+    use super::{GitError, parse_index_entry, parse_nul_paths, parse_rename_only_paths};
 
     #[test]
     fn parses_nul_delimited_spaces_and_unicode_paths() {
@@ -249,6 +308,13 @@ mod tests {
         }
     }
 
+    #[test]
+    fn parses_exact_rename_only_statuses() {
+        let bytes = b"R100\0old.txt\0new.txt\0M\0modified.txt\0R090\0before\0after\0";
+        let paths = parse_rename_only_paths(bytes).expect("rename statuses");
+        assert!(paths.contains("new.txt"));
+        assert_eq!(paths.len(), 1);
+    }
     #[test]
     fn unmerged_and_malformed_records_fail_closed() {
         let unmerged = format!("100644 {} 2\tpath.txt\0", "a".repeat(40));

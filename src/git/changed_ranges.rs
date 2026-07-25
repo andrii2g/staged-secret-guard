@@ -17,7 +17,10 @@ fn parse_header(line: &[u8]) -> Result<Option<LineRange>, HunkError> {
     let text = std::str::from_utf8(line).map_err(|_| HunkError)?;
     let plus = text.find(" +").ok_or(HunkError)? + 2;
     let after_plus = text.get(plus..).ok_or(HunkError)?;
-    let token = after_plus.split_ascii_whitespace().next().ok_or(HunkError)?;
+    let token = after_plus
+        .split_ascii_whitespace()
+        .next()
+        .ok_or(HunkError)?;
     if token.is_empty() || !text.ends_with(" @@") && !text.contains(" @@ ") {
         return Err(HunkError);
     }
@@ -46,13 +49,18 @@ mod tests {
 
     #[test]
     fn parses_omitted_zero_adjacent_and_overlapping_ranges() {
-        let diff = b"header\n@@ -1 +2 @@\nbody\n@@ -3,0 +4,0 @@\n@@ -4 +3,2 @@\n@@ -8 +5,3 @@ context\n";
+        let diff =
+            b"header\n@@ -1 +2 @@\nbody\n@@ -3,0 +4,0 @@\n@@ -4 +3,2 @@\n@@ -8 +5,3 @@ context\n";
         assert_eq!(parse(diff).expect("valid hunks"), vec![range(2, 7)]);
     }
 
     #[test]
     fn ignores_patch_body_and_rejects_malformed_hunks() {
-        assert!(parse(b"+++ filename\n+@@ not-a-header\n").expect("no hunks").is_empty());
+        assert!(
+            parse(b"+++ filename\n+@@ not-a-header\n")
+                .expect("no hunks")
+                .is_empty()
+        );
         assert!(parse(b"@@ malformed @@\n").is_err());
         assert!(parse(b"@@ -1 +0,2 @@\n").is_err());
     }

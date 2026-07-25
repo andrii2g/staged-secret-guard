@@ -85,7 +85,7 @@ pub fn scan_folder(
         }
         let bytes = match fs::read(&path) {
             Ok(bytes) => bytes,
-            Err(source) if !config.scan.fail_on_read_error => continue,
+            Err(_source) if !config.scan.fail_on_read_error => continue,
             Err(source) => {
                 return Err(FolderError::Read {
                     path: path.display().to_string(),
@@ -93,7 +93,9 @@ pub fn scan_folder(
                 });
             }
         };
-        let relative = path.strip_prefix(&root).map_err(|_| FolderError::OutsideRoot)?;
+        let relative = path
+            .strip_prefix(&root)
+            .map_err(|_| FolderError::OutsideRoot)?;
         let changed_ranges = full_file_range(&bytes).into_iter().collect();
         let input = FileInput {
             relative_path: normalize_path(relative),
@@ -161,6 +163,7 @@ fn inventory(
         .git_ignore(respect_gitignore)
         .git_exclude(respect_gitignore)
         .git_global(false)
+        .require_git(false)
         .filter_entry(move |entry| {
             if entry.depth() == 0 {
                 return true;
@@ -183,7 +186,7 @@ fn inventory(
     for item in builder.build() {
         let entry = match item {
             Ok(entry) => entry,
-            Err(error) if !fail_on_error => continue,
+            Err(_error) if !fail_on_error => continue,
             Err(error) => return Err(FolderError::Traversal(error.to_string())),
         };
         let Some(file_type) = entry.file_type() else {
@@ -241,19 +244,33 @@ mod tests {
         fs::create_dir_all(directory.path().join("nested")).expect("nested directory");
         fs::create_dir_all(directory.path().join("target")).expect("target directory");
         let value = ["Ab", "12", "-complex-", "Value", "9876"].concat();
-        fs::write(directory.path().join("nested/config.txt"), format!("password={value}"))
-            .expect("nested file");
+        fs::write(
+            directory.path().join("nested/config.txt"),
+            format!("password={value}"),
+        )
+        .expect("nested file");
         fs::write(directory.path().join(".env"), "clean=true").expect("hidden file");
-        fs::write(directory.path().join("ignored.txt"), format!("password={value}"))
-            .expect("ignored file");
+        fs::write(
+            directory.path().join("ignored.txt"),
+            format!("password={value}"),
+        )
+        .expect("ignored file");
         fs::write(directory.path().join(".gitignore"), "ignored.txt\n").expect("gitignore");
-        fs::write(directory.path().join("target/generated.txt"), format!("password={value}"))
-            .expect("excluded file");
+        fs::write(
+            directory.path().join("target/generated.txt"),
+            format!("password={value}"),
+        )
+        .expect("excluded file");
 
         let result = scan_folder(directory.path(), &Config::default(), None).expect("folder scan");
         assert_eq!(result.findings.len(), 2);
         assert!(result.findings.iter().any(|item| item.path == ".env"));
-        assert!(result.findings.iter().any(|item| item.path == "nested/config.txt"));
+        assert!(
+            result
+                .findings
+                .iter()
+                .any(|item| item.path == "nested/config.txt")
+        );
         assert_eq!(result.summary.skipped_ignored, 1);
         assert!(result.summary.skipped_excluded >= 1);
     }
