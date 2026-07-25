@@ -12,9 +12,12 @@ impl RuleId {
     pub fn new(value: impl Into<String>) -> Result<Self, InvalidRuleId> {
         let value = value.into();
         let valid = !value.is_empty()
-            && value
-                .split('-')
-                .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit()));
+            && value.split('-').all(|part| {
+                !part.is_empty()
+                    && part
+                        .bytes()
+                        .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+            });
         if valid {
             Ok(Self(value))
         } else {

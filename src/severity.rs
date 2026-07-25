@@ -2,11 +2,14 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     Low,
     Medium,
+    #[default]
     High,
     Critical,
 }
@@ -14,12 +17,6 @@ pub enum Severity {
 impl Severity {
     pub const fn blocks(self, threshold: Self) -> bool {
         self as u8 >= threshold as u8
-    }
-}
-
-impl Default for Severity {
-    fn default() -> Self {
-        Self::High
     }
 }
 
@@ -98,3 +95,4 @@ mod tests {
         let rendered = serde_json::to_string(&Severity::Critical).expect("serialize severity");
         assert_eq!(rendered, "\"critical\"");
     }
+}
