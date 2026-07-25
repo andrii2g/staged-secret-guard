@@ -23,8 +23,7 @@ fn explicit_staged_scan_parses() {
 
 #[test]
 fn folder_scan_parses() {
-    let cli = Cli::try_parse_from(["secret-guard", "scan", "."])
-        .expect("folder scan should parse");
+    let cli = Cli::try_parse_from(["secret-guard", "scan", "."]).expect("folder scan should parse");
 
     let Some(Command::Scan(scan)) = cli.command else {
         panic!("expected scan command");
@@ -47,19 +46,22 @@ fn hook_actions_parse() {
         ("status", HookAction::Status),
         ("uninstall", HookAction::Uninstall),
     ] {
-        let cli = Cli::try_parse_from(["secret-guard", "hook", name])
-            .expect("hook action should parse");
+        let cli =
+            Cli::try_parse_from(["secret-guard", "hook", name]).expect("hook action should parse");
         let Some(Command::Hook { action }) = cli.command else {
             panic!("expected hook command");
         };
-        assert_eq!(std::mem::discriminant(&action), std::mem::discriminant(&expected));
+        assert_eq!(
+            std::mem::discriminant(&action),
+            std::mem::discriminant(&expected)
+        );
     }
 }
 
 #[test]
 fn rules_list_parses() {
-    let cli = Cli::try_parse_from(["secret-guard", "rules", "list"])
-        .expect("rules list should parse");
+    let cli =
+        Cli::try_parse_from(["secret-guard", "rules", "list"]).expect("rules list should parse");
     let Some(Command::Rules { action }) = cli.command else {
         panic!("expected rules command");
     };
