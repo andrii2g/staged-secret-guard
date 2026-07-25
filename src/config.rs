@@ -4,7 +4,7 @@ use globset::{Glob, GlobMatcher};
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::{finding::RuleId, severity::Severity};
+use crate::{finding::RuleId, rules::catalog, severity::Severity};
 
 pub const DEFAULT_MAX_FILE_SIZE_BYTES: usize = 1_048_576;
 
@@ -21,27 +21,6 @@ pub const DEFAULT_EXCLUSIONS: &[&str] = &[
     "coverage/**",
     "**/*.min.js",
     "**/*.map",
-];
-
-const BUILT_IN_RULE_IDS: &[&str] = &[
-    "private-key-pem",
-    "github-token",
-    "gitlab-token",
-    "slack-token",
-    "slack-webhook",
-    "stripe-live-secret-key",
-    "stripe-test-secret-key",
-    "openai-api-key",
-    "google-api-key",
-    "npm-token",
-    "aws-access-key-id",
-    "aws-secret-access-key",
-    "azure-storage-account-key",
-    "basic-auth-url",
-    "database-connection-password",
-    "jwt-token",
-    "generic-secret-assignment",
-    "suspicious-file-path",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,7 +180,7 @@ impl Config {
             }
             let rule = RuleId::new(item.rule)
                 .map_err(|_| ConfigError::semantic(&path, "allowlist rule ID is invalid"))?;
-            if !BUILT_IN_RULE_IDS.contains(&rule.as_str()) {
+            if !catalog::is_known(rule.as_str()) {
                 return Err(ConfigError::semantic(
                     &path,
                     "allowlist rule is not built in",
