@@ -16,11 +16,12 @@ static GITHUB: LazyLock<Option<Regex>> = LazyLock::new(|| {
 });
 static GITLAB: LazyLock<Option<Regex>> =
     LazyLock::new(|| compile(r"\bglpat-[A-Za-z0-9_-]{20,64}\b"));
-static SLACK_TOKEN: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r"\bxox[bpars]-(?:[0-9A-Za-z]+-){2,3}[A-Za-z0-9]{16,64}\b")
-});
+static SLACK_TOKEN: LazyLock<Option<Regex>> =
+    LazyLock::new(|| compile(r"\bxox[bpars]-(?:[0-9A-Za-z]+-){2,3}[A-Za-z0-9]{16,64}\b"));
 static SLACK_WEBHOOK: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r"https://hooks\.slack\.com/services/T[A-Za-z0-9]{8,}/B[A-Za-z0-9]{8,}/[A-Za-z0-9]{20,64}")
+    compile(
+        r"https://hooks\.slack\.com/services/T[A-Za-z0-9]{8,}/B[A-Za-z0-9]{8,}/[A-Za-z0-9]{20,64}",
+    )
 });
 static STRIPE_LIVE: LazyLock<Option<Regex>> =
     LazyLock::new(|| compile(r"\b[rs]k_live_[A-Za-z0-9]{24,64}\b"));
@@ -28,49 +29,183 @@ static STRIPE_TEST: LazyLock<Option<Regex>> =
     LazyLock::new(|| compile(r"\b[rs]k_test_[A-Za-z0-9]{24,64}\b"));
 static OPENAI: LazyLock<Option<Regex>> =
     LazyLock::new(|| compile(r"\bsk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,200}\b"));
-static GOOGLE: LazyLock<Option<Regex>> =
-    LazyLock::new(|| compile(r"\bAIza[0-9A-Za-z_-]{35}\b"));
-static NPM: LazyLock<Option<Regex>> =
-    LazyLock::new(|| compile(r"\bnpm_[A-Za-z0-9]{36}\b"));
+static GOOGLE: LazyLock<Option<Regex>> = LazyLock::new(|| compile(r"\bAIza[0-9A-Za-z_-]{35}\b"));
+static NPM: LazyLock<Option<Regex>> = LazyLock::new(|| compile(r"\bnpm_[A-Za-z0-9]{36}\b"));
 static AWS_ID: LazyLock<Option<Regex>> =
     LazyLock::new(|| compile(r"\b(?:AKIA|ASIA|AIDA|AROA)[A-Z0-9]{16}\b"));
 static AWS_SECRET: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r#"(?i)(?:aws[_-]?secret[_-]?access[_-]?key|secretaccesskey)\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})"#)
+    compile(
+        r#"(?i)(?:aws[_-]?secret[_-]?access[_-]?key|secretaccesskey)\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})"#,
+    )
 });
-static AZURE_KEY: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r"(?i)AccountKey\s*=\s*([A-Za-z0-9+/]{40,100}={0,2})")
-});
+static AZURE_KEY: LazyLock<Option<Regex>> =
+    LazyLock::new(|| compile(r"(?i)AccountKey\s*=\s*([A-Za-z0-9+/]{40,100}={0,2})"));
 static BASIC_AUTH: LazyLock<Option<Regex>> = LazyLock::new(|| {
     compile(r"(?i)https?://[^:/\s@]+:([^@\s/]{8,128})@[A-Za-z0-9.-]+(?::[0-9]+)?")
 });
 static DATABASE_URI: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r"(?i)(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|sqlserver)://[^:/\s@]+:([^@\s/]{8,128})@")
+    compile(
+        r"(?i)(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|sqlserver)://[^:/\s@]+:([^@\s/]{8,128})@",
+    )
 });
-static CONNECTION_PASSWORD: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r#"(?i)(?:password|pwd)\s*=\s*["']?([^;\s"']{8,128})"#)
-});
-static JWT: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")
-});
+static CONNECTION_PASSWORD: LazyLock<Option<Regex>> =
+    LazyLock::new(|| compile(r#"(?i)(?:password|pwd)\s*=\s*["']?([^;\s"']{8,128})"#));
+static JWT: LazyLock<Option<Regex>> =
+    LazyLock::new(|| compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b"));
 
 pub fn detect<'a>(input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>>) {
     let text = input.as_str();
-    emit(&GITHUB, text, 0, "github-token", Severity::High, 98, "Value matches a GitHub token structure.", sink);
-    emit(&GITLAB, text, 0, "gitlab-token", Severity::High, 98, "Value matches a GitLab token structure.", sink);
-    emit(&SLACK_TOKEN, text, 0, "slack-token", Severity::High, 96, "Value matches a Slack token structure.", sink);
-    emit(&SLACK_WEBHOOK, text, 0, "slack-webhook", Severity::High, 98, "Value matches a Slack incoming-webhook structure.", sink);
-    emit(&STRIPE_LIVE, text, 0, "stripe-live-secret-key", Severity::High, 98, "Value matches a Stripe live secret-key structure.", sink);
-    emit(&STRIPE_TEST, text, 0, "stripe-test-secret-key", Severity::Medium, 95, "Value matches a Stripe test secret-key structure.", sink);
-    emit(&OPENAI, text, 0, "openai-api-key", Severity::High, 98, "Value matches an OpenAI key structure.", sink);
-    emit(&GOOGLE, text, 0, "google-api-key", Severity::High, 98, "Value matches a Google API key structure.", sink);
-    emit(&NPM, text, 0, "npm-token", Severity::High, 98, "Value matches an npm token structure.", sink);
-    emit(&AWS_ID, text, 0, "aws-access-key-id", Severity::Medium, 90, "Value matches an AWS access-key identifier.", sink);
-    emit(&AWS_SECRET, text, 1, "aws-secret-access-key", Severity::High, 98, "Sensitive AWS context contains a secret-access-key structure.", sink);
-    emit(&AZURE_KEY, text, 1, "azure-storage-account-key", Severity::High, 98, "Azure Storage connection string contains an account key.", sink);
-    emit(&BASIC_AUTH, text, 1, "basic-auth-url", Severity::High, 95, "URL contains literal user and password credentials.", sink);
-    emit(&DATABASE_URI, text, 1, "database-connection-password", Severity::High, 95, "Database URI contains a literal password.", sink);
+    emit(
+        &GITHUB,
+        text,
+        0,
+        "github-token",
+        Severity::High,
+        98,
+        "Value matches a GitHub token structure.",
+        sink,
+    );
+    emit(
+        &GITLAB,
+        text,
+        0,
+        "gitlab-token",
+        Severity::High,
+        98,
+        "Value matches a GitLab token structure.",
+        sink,
+    );
+    emit(
+        &SLACK_TOKEN,
+        text,
+        0,
+        "slack-token",
+        Severity::High,
+        96,
+        "Value matches a Slack token structure.",
+        sink,
+    );
+    emit(
+        &SLACK_WEBHOOK,
+        text,
+        0,
+        "slack-webhook",
+        Severity::High,
+        98,
+        "Value matches a Slack incoming-webhook structure.",
+        sink,
+    );
+    emit(
+        &STRIPE_LIVE,
+        text,
+        0,
+        "stripe-live-secret-key",
+        Severity::High,
+        98,
+        "Value matches a Stripe live secret-key structure.",
+        sink,
+    );
+    emit(
+        &STRIPE_TEST,
+        text,
+        0,
+        "stripe-test-secret-key",
+        Severity::Medium,
+        95,
+        "Value matches a Stripe test secret-key structure.",
+        sink,
+    );
+    emit(
+        &OPENAI,
+        text,
+        0,
+        "openai-api-key",
+        Severity::High,
+        98,
+        "Value matches an OpenAI key structure.",
+        sink,
+    );
+    emit(
+        &GOOGLE,
+        text,
+        0,
+        "google-api-key",
+        Severity::High,
+        98,
+        "Value matches a Google API key structure.",
+        sink,
+    );
+    emit(
+        &NPM,
+        text,
+        0,
+        "npm-token",
+        Severity::High,
+        98,
+        "Value matches an npm token structure.",
+        sink,
+    );
+    emit(
+        &AWS_ID,
+        text,
+        0,
+        "aws-access-key-id",
+        Severity::Medium,
+        90,
+        "Value matches an AWS access-key identifier.",
+        sink,
+    );
+    emit(
+        &AWS_SECRET,
+        text,
+        1,
+        "aws-secret-access-key",
+        Severity::High,
+        98,
+        "Sensitive AWS context contains a secret-access-key structure.",
+        sink,
+    );
+    emit(
+        &AZURE_KEY,
+        text,
+        1,
+        "azure-storage-account-key",
+        Severity::High,
+        98,
+        "Azure Storage connection string contains an account key.",
+        sink,
+    );
+    emit(
+        &BASIC_AUTH,
+        text,
+        1,
+        "basic-auth-url",
+        Severity::High,
+        95,
+        "URL contains literal user and password credentials.",
+        sink,
+    );
+    emit(
+        &DATABASE_URI,
+        text,
+        1,
+        "database-connection-password",
+        Severity::High,
+        95,
+        "Database URI contains a literal password.",
+        sink,
+    );
     detect_connection_passwords(text, sink);
-    emit(&JWT, text, 0, "jwt-token", Severity::Medium, 80, "Value matches a JSON Web Token structure.", sink);
+    emit(
+        &JWT,
+        text,
+        0,
+        "jwt-token",
+        Severity::Medium,
+        80,
+        "Value matches a JSON Web Token structure.",
+        sink,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -165,8 +300,14 @@ mod tests {
         let cases = [
             (candidate(&["g", "hp", "_"], 'A', 36), "github-token"),
             (candidate(&["gl", "pat", "-"], 'B', 20), "gitlab-token"),
-            (candidate(&["sk", "_live", "_"], 'C', 24), "stripe-live-secret-key"),
-            (candidate(&["sk", "_test", "_"], 'D', 24), "stripe-test-secret-key"),
+            (
+                candidate(&["sk", "_live", "_"], 'C', 24),
+                "stripe-live-secret-key",
+            ),
+            (
+                candidate(&["sk", "_test", "_"], 'D', 24),
+                "stripe-test-secret-key",
+            ),
             (candidate(&["sk", "-proj", "-"], 'E', 20), "openai-api-key"),
             (candidate(&["AI", "za"], 'F', 35), "google-api-key"),
             (candidate(&["np", "m_"], 'G', 36), "npm-token"),
@@ -201,7 +342,10 @@ mod tests {
         let aws = format!("aws_secret_access_key = {}", "A1+/".repeat(10));
         assert!(ids(&aws).contains(&"aws-secret-access-key"));
         assert!(!ids(&"A1+/".repeat(10)).contains(&"aws-secret-access-key"));
-        let azure = format!("DefaultEndpointsProtocol=https;AccountKey={}", "Ab1+".repeat(12));
+        let azure = format!(
+            "DefaultEndpointsProtocol=https;AccountKey={}",
+            "Ab1+".repeat(12)
+        );
         assert!(ids(&azure).contains(&"azure-storage-account-key"));
         let basic = ["https://user:", "literal-pass", "@example.test"].concat();
         assert!(ids(&basic).contains(&"basic-auth-url"));

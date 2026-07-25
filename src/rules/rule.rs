@@ -1,4 +1,7 @@
-use crate::{scan::text::{CandidateMatch, PreparedText}, severity::Severity};
+use crate::{
+    scan::text::{CandidateMatch, PreparedText},
+    severity::Severity,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RuleMetadata {

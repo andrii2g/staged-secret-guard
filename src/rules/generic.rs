@@ -106,9 +106,15 @@ pub const fn severity_for_score(score: i16) -> Option<Severity> {
 }
 
 fn character_classes(candidate: &str) -> usize {
-    let lower = candidate.chars().any(|character| character.is_ascii_lowercase());
-    let upper = candidate.chars().any(|character| character.is_ascii_uppercase());
-    let digit = candidate.chars().any(|character| character.is_ascii_digit());
+    let lower = candidate
+        .chars()
+        .any(|character| character.is_ascii_lowercase());
+    let upper = candidate
+        .chars()
+        .any(|character| character.is_ascii_uppercase());
+    let digit = candidate
+        .chars()
+        .any(|character| character.is_ascii_digit());
     let other = candidate
         .chars()
         .any(|character| !character.is_ascii_alphanumeric());
@@ -165,7 +171,12 @@ mod tests {
             detected(&format!("password = \"{value}\""), "src/config.rs"),
             vec![Severity::High]
         );
-        for reference in ["${PASSWORD}", "%PASSWORD%", "process.env.PASSWORD", "changeme"] {
+        for reference in [
+            "${PASSWORD}",
+            "%PASSWORD%",
+            "process.env.PASSWORD",
+            "changeme",
+        ] {
             assert!(detected(&format!("password = {reference}"), "src/config.rs").is_empty());
         }
     }

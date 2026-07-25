@@ -28,10 +28,8 @@ pub fn detect(normalized_path: &str) -> Option<PathMatch> {
         .unwrap_or(normalized_path)
         .to_ascii_lowercase();
 
-    if matches!(
-        name.as_str(),
-        ".env.example" | ".env.sample"
-    ) || name.ends_with(".example")
+    if matches!(name.as_str(), ".env.example" | ".env.sample")
+        || name.ends_with(".example")
         || name.ends_with(".template")
     {
         return None;
@@ -78,13 +76,24 @@ mod tests {
 
     #[test]
     fn applies_path_groups_and_exceptions() {
-        assert_eq!(detect("keys/id_rsa").map(|item| item.severity), Some(Severity::Critical));
+        assert_eq!(
+            detect("keys/id_rsa").map(|item| item.severity),
+            Some(Severity::Critical)
+        );
         assert_eq!(
             detect("config/.env.production").map(|item| item.severity),
             Some(Severity::High)
         );
-        assert_eq!(detect(".env").map(|item| item.severity), Some(Severity::Medium));
-        for safe in [".env.example", ".env.sample", "config.template", "public.pem"] {
+        assert_eq!(
+            detect(".env").map(|item| item.severity),
+            Some(Severity::Medium)
+        );
+        for safe in [
+            ".env.example",
+            ".env.sample",
+            "config.template",
+            "public.pem",
+        ] {
             assert!(detect(safe).is_none());
         }
     }

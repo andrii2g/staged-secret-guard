@@ -25,7 +25,9 @@ pub fn detect<'a>(input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>
         let byte_end = text
             .get(search_start..)
             .and_then(|tail| tail.find(&end_marker))
-            .map_or(text.len(), |relative| search_start + relative + end_marker.len());
+            .map_or(text.len(), |relative| {
+                search_start + relative + end_marker.len()
+            });
         let Some(candidate) = text.get(start_match.start()..byte_end) else {
             continue;
         };
