@@ -53,7 +53,7 @@ static CONNECTION_PASSWORD: LazyLock<Option<Regex>> =
 static JWT: LazyLock<Option<Regex>> =
     LazyLock::new(|| compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b"));
 
-pub fn detect<'a>(input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>>) {
+pub(crate) fn detect<'a>(input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>>) {
     let text = input.as_str();
     emit(
         &GITHUB,

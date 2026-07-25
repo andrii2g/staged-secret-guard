@@ -21,7 +21,7 @@ impl PathRule for SuspiciousPathRule {
     }
 }
 
-pub fn detect(normalized_path: &str) -> Option<PathMatch> {
+pub(crate) fn detect(normalized_path: &str) -> Option<PathMatch> {
     let name = normalized_path
         .rsplit('/')
         .next()

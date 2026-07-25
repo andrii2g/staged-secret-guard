@@ -11,7 +11,7 @@ static BEGIN_PRIVATE_KEY: LazyLock<Option<Regex>> = LazyLock::new(|| {
     Regex::new(r"-----BEGIN ((?:ENCRYPTED |RSA |EC |DSA |OPENSSH )?PRIVATE KEY)-----").ok()
 });
 
-pub fn detect<'a>(input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>>) {
+pub(crate) fn detect<'a>(input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>>) {
     let Some(pattern) = BEGIN_PRIVATE_KEY.as_ref() else {
         return;
     };

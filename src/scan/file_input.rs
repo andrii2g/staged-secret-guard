@@ -92,11 +92,11 @@ pub fn merge_line_ranges(mut ranges: Vec<LineRange>) -> Vec<LineRange> {
     ranges.sort_unstable();
     let mut merged: Vec<LineRange> = Vec::with_capacity(ranges.len());
     for range in ranges {
-        if let Some(previous) = merged.last_mut()
-            && range.start_line <= previous.end_line.saturating_add(1)
-        {
-            previous.end_line = previous.end_line.max(range.end_line);
-            continue;
+        if let Some(previous) = merged.last_mut() {
+            if range.start_line <= previous.end_line.saturating_add(1) {
+                previous.end_line = previous.end_line.max(range.end_line);
+                continue;
+            }
         }
         merged.push(range);
     }

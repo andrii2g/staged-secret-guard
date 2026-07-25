@@ -11,12 +11,12 @@ use crate::{
 
 static ASSIGNMENT: LazyLock<Option<Regex>> = LazyLock::new(|| {
     Regex::new(
-        r#"(?im)(?P<key>password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer[_-]?token|private[_-]?key|connection[_-]?string)["']?\s*[:=]\s*(?P<value>"[^"\r\n]{1,256}"|'[^'\r\n]{1,256}'|[^\s,;#]{1,256})"#,
+        r#"(?im)\b(?P<key>password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer[_-]?token|private[_-]?key|connection[_-]?string)\b["']?\s*[:=]\s*(?P<value>"[^"\r\n]{1,256}"|'[^'\r\n]{1,256}'|[^\s,;#]{1,256})"#,
     )
     .ok()
 });
 
-pub fn detect<'a>(
+pub(crate) fn detect<'a>(
     input: &'a PreparedText<'a>,
     normalized_path: &str,
     sink: &mut Vec<CandidateMatch<'a>>,
@@ -42,7 +42,10 @@ pub fn detect<'a>(
             (raw, value_match.start(), value_match.end())
         };
 
-        if is_placeholder(candidate) || is_environment_reference(candidate) {
+        if is_placeholder(candidate)
+            || is_environment_reference(candidate)
+            || looks_like_code_expression(candidate)
+        {
             continue;
         }
         let score = score(candidate, quoted, normalized_path);
@@ -105,6 +108,11 @@ pub const fn severity_for_score(score: i16) -> Option<Severity> {
     }
 }
 
+fn looks_like_code_expression(candidate: &str) -> bool {
+    candidate.starts_with(['\\', '{', '<'])
+        || candidate.contains("::")
+        || (candidate.contains('<') && candidate.contains('>'))
+}
 fn character_classes(candidate: &str) -> usize {
     let lower = candidate
         .chars()

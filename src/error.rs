@@ -4,8 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ToolError {
-    #[error("requested operation is not implemented yet")]
-    NotImplemented,
+    #[error("internal command dispatch invariant failed")]
+    InternalDispatch,
     #[error(transparent)]
     Config(#[from] crate::config::ConfigError),
     #[error(transparent)]

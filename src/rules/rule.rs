@@ -13,18 +13,20 @@ pub struct RuleMetadata {
     pub description: &'static str,
 }
 
-pub trait ContentRule {
+#[allow(dead_code)]
+pub(crate) trait ContentRule {
     fn metadata(&self) -> &'static RuleMetadata;
     fn detect<'a>(&self, input: &'a PreparedText<'a>, sink: &mut Vec<CandidateMatch<'a>>);
 }
 
-pub trait PathRule {
+#[allow(dead_code)]
+pub(crate) trait PathRule {
     fn metadata(&self) -> &'static RuleMetadata;
     fn detect(&self, normalized_path: &str) -> Option<PathMatch>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PathMatch {
+pub(crate) struct PathMatch {
     pub severity: Severity,
     pub confidence: u8,
     pub message: &'static str,

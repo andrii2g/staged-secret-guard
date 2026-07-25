@@ -9,18 +9,23 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     about = "Detect likely secrets in staged Git content before commit"
 )]
 pub struct Cli {
+    /// Explicit TOML configuration file.
     #[arg(long, global = true, value_name = "FILE")]
     pub config: Option<PathBuf>,
 
+    /// Report format: console or json.
     #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Console)]
     pub format: OutputFormat,
 
+    /// Write the completed report atomically to a file.
     #[arg(long, global = true, value_name = "FILE")]
     pub output: Option<PathBuf>,
 
+    /// Minimum severity that produces exit code 1.
     #[arg(long, global = true, value_enum)]
     pub fail_on: Option<SeverityArg>,
 
+    /// Suppress clean-success console output.
     #[arg(long, global = true)]
     pub quiet: bool,
 
@@ -57,13 +62,17 @@ pub struct ScanArgs {
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum HookAction {
+    /// Install or update the fully managed pre-commit hook.
     Install,
+    /// Print the stable managed-hook status identifier.
     Status,
+    /// Remove only a recognized fully managed hook.
     Uninstall,
 }
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum RulesAction {
+    /// List all built-in rule metadata.
     List,
 }
 

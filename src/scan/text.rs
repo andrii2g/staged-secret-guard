@@ -122,14 +122,14 @@ impl<'a> PreparedText<'a> {
     }
 }
 
-pub struct CandidateMatch<'a> {
-    pub rule_id: &'static str,
-    pub severity: Severity,
-    pub confidence: u8,
-    pub byte_start: usize,
-    pub byte_end: usize,
-    pub message: &'static str,
-    pub candidate: &'a str,
+pub(crate) struct CandidateMatch<'a> {
+    pub(crate) rule_id: &'static str,
+    pub(crate) severity: Severity,
+    pub(crate) confidence: u8,
+    pub(crate) byte_start: usize,
+    pub(crate) byte_end: usize,
+    pub(crate) message: &'static str,
+    pub(crate) candidate: &'a str,
 }
 
 pub fn shannon_entropy(candidate: &[u8]) -> f64 {
