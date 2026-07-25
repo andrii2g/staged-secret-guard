@@ -7,6 +7,7 @@ use crate::{
     cli::{Cli, Command, OutputFormat, SeverityArg},
     config::Config,
     error::ToolError,
+    git::{client::GitClient, staged_source::scan_staged},
     exit_code::{CLEAN, FINDINGS, OPERATIONAL_ERROR},
     report,
     scan::{ScanResult, folder_source::scan_folder},
@@ -42,9 +43,21 @@ fn execute_inner(cli: Cli) -> Result<u8, ToolError> {
             let result = scan_folder(&root, &config, output_absolute.as_deref())?;
             complete_scan(result, threshold, format, output.as_deref(), quiet)
         }
-        None | Some(Command::Scan(_)) | Some(Command::Hook { .. }) | Some(Command::Rules { .. }) => {
-            Err(ToolError::NotImplemented)
+        None | Some(Command::Scan(_)) => {
+            let current = std::env::current_dir().map_err(|source| ToolError::Path {
+                path: ".".to_owned(),
+                source,
+            })?;
+            let client = GitClient::discover(&current)?;
+            let config = Config::load(
+                cli.config.as_deref(),
+                &client.root().join(".secret-guard.toml"),
+            )?;
+            let threshold = config.effective_threshold(cli_threshold);
+            let result = scan_staged(&client, &config)?;
+            complete_scan(result, threshold, format, output.as_deref(), quiet)
         }
+        Some(Command::Hook { .. }) | Some(Command::Rules { .. }) => Err(ToolError::NotImplemented),
     }
 }
 
@@ -64,7 +77,9 @@ fn complete_scan(
 
     let bytes = match format {
         OutputFormat::Console => report::console::render(&result, quiet).into_bytes(),
-        OutputFormat::Json => report::json::render(&result, threshold)?,
+        OutputFormat::Json => {
+            report::json::render(&result, threshold).map_err(report::ReportError::Json)?
+        }
     };
     if let Some(path) = output {
         report::write_atomic(path, &bytes)?;

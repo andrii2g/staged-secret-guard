@@ -11,6 +11,10 @@ pub enum ToolError {
     #[error(transparent)]
     Folder(#[from] crate::scan::folder_source::FolderError),
     #[error(transparent)]
+    Git(#[from] crate::git::client::GitError),
+    #[error(transparent)]
+    Staged(#[from] crate::git::staged_source::StagedError),
+    #[error(transparent)]
     Report(#[from] crate::report::ReportError),
     #[error("unable to resolve path {path}: {source}")]
     Path {
