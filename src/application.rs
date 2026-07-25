@@ -34,7 +34,7 @@ fn execute_inner(cli: Cli) -> Result<u8, ToolError> {
 
     match cli.command {
         Some(Command::Scan(scan)) if scan.path.is_some() => {
-            let path = scan.path.as_deref().ok_or(ToolError::NotImplemented)?;
+            let path = scan.path.as_deref().ok_or(ToolError::InternalDispatch)?;
             let root = path.canonicalize().map_err(|source| ToolError::Path {
                 path: path.display().to_string(),
                 source,
