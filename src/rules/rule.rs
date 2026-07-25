@@ -1,9 +1,11 @@
+use serde::Serialize;
+
 use crate::{
     scan::text::{CandidateMatch, PreparedText},
     severity::Severity,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct RuleMetadata {
     pub id: &'static str,
     pub severity: Severity,

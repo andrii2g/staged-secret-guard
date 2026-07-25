@@ -4,13 +4,14 @@ use std::{
 };
 
 use crate::{
-    cli::{Cli, Command, HookAction, OutputFormat, SeverityArg},
+    cli::{Cli, Command, HookAction, OutputFormat, RulesAction, SeverityArg},
     config::Config,
     error::ToolError,
     exit_code::{CLEAN, FINDINGS, OPERATIONAL_ERROR},
     git::{client::GitClient, staged_source::scan_staged},
     hook::manager::HookManager,
     report,
+    rules::catalog,
     scan::{ScanResult, folder_source::scan_folder},
     severity::Severity,
 };
@@ -59,10 +60,50 @@ fn execute_inner(cli: Cli) -> Result<u8, ToolError> {
             complete_scan(result, threshold, format, output.as_deref(), quiet)
         }
         Some(Command::Hook { action }) => execute_hook(action),
-        Some(Command::Rules { .. }) => Err(ToolError::NotImplemented),
+        Some(Command::Rules {
+            action: RulesAction::List,
+        }) => execute_rules(format, output.as_deref()),
     }
 }
 
+fn execute_rules(format: OutputFormat, output: Option<&Path>) -> Result<u8, ToolError> {
+    let bytes = match format {
+        OutputFormat::Console => {
+            let mut rendered = String::from("RULE ID | SEVERITY | FAMILY | DESCRIPTION\n");
+            for rule in catalog::all() {
+                rendered.push_str(&format!(
+                    "{} | {} | {} | {}\n",
+                    rule.id, rule.severity, rule.family, rule.description
+                ));
+            }
+            rendered.into_bytes()
+        }
+        OutputFormat::Json => {
+            #[derive(serde::Serialize)]
+            #[serde(rename_all = "camelCase")]
+            struct RuleReport {
+                schema_version: u8,
+                rules: &'static [crate::rules::rule::RuleMetadata],
+            }
+            let mut bytes = serde_json::to_vec_pretty(&RuleReport {
+                schema_version: 1,
+                rules: catalog::all(),
+            })
+            .map_err(report::ReportError::Json)?;
+            bytes.push(b'\n');
+            bytes
+        }
+    };
+    if let Some(path) = output {
+        report::write_atomic(path, &bytes)?;
+    } else {
+        io::stdout()
+            .lock()
+            .write_all(&bytes)
+            .map_err(ToolError::Output)?;
+    }
+    Ok(CLEAN)
+}
 fn execute_hook(action: HookAction) -> Result<u8, ToolError> {
     let current = std::env::current_dir().map_err(|source| ToolError::Path {
         path: ".".to_owned(),
