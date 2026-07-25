@@ -71,7 +71,10 @@ mod tests {
             },
         };
         assert_eq!(render(&clean, true), "");
-        assert!(render(&clean, false).starts_with("Secret Guard: no blocking"));
+        assert_eq!(
+            render(&clean, false),
+            "Secret Guard: no blocking secrets found.\nScanned 2 files; 0 findings; 0 skipped.\n"
+        );
 
         let finding = Finding {
             rule_id: RuleId::new("generic-secret-assignment").expect("valid ID"),
@@ -97,8 +100,9 @@ mod tests {
             },
         };
         let rendered = render(&report, false);
-        assert!(rendered.contains("[HIGH] generic-secret-assignment"));
-        assert!(rendered.contains("Path: src/config.rs:3:4"));
-        assert!(!rendered.contains("source line"));
+        assert_eq!(
+            rendered,
+            "Secret Guard found blocking secrets.\n\n[HIGH] generic-secret-assignment\nPath: src/config.rs:3:4\nReason: safe reason\nValue: ab\u{2022}\u{2022}\u{2022}\u{2022}yz\n\nSummary: 1 findings; 1 blocking; 1 files scanned; 0 skipped.\n"
+        );
     }
 }

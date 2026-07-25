@@ -4,11 +4,12 @@ use std::{
 };
 
 use crate::{
-    cli::{Cli, Command, OutputFormat, SeverityArg},
+    cli::{Cli, Command, HookAction, OutputFormat, SeverityArg},
     config::Config,
     error::ToolError,
     exit_code::{CLEAN, FINDINGS, OPERATIONAL_ERROR},
     git::{client::GitClient, staged_source::scan_staged},
+    hook::manager::HookManager,
     report,
     scan::{ScanResult, folder_source::scan_folder},
     severity::Severity,
@@ -57,10 +58,39 @@ fn execute_inner(cli: Cli) -> Result<u8, ToolError> {
             let result = scan_staged(&client, &config)?;
             complete_scan(result, threshold, format, output.as_deref(), quiet)
         }
-        Some(Command::Hook { .. }) | Some(Command::Rules { .. }) => Err(ToolError::NotImplemented),
+        Some(Command::Hook { action }) => execute_hook(action),
+        Some(Command::Rules { .. }) => Err(ToolError::NotImplemented),
     }
 }
 
+fn execute_hook(action: HookAction) -> Result<u8, ToolError> {
+    let current = std::env::current_dir().map_err(|source| ToolError::Path {
+        path: ".".to_owned(),
+        source,
+    })?;
+    let client = GitClient::discover(&current)?;
+    let executable = std::env::current_exe().map_err(|source| ToolError::Path {
+        path: "current executable".to_owned(),
+        source,
+    })?;
+    let manager = HookManager::new(&client, &executable)?;
+    let message = match action {
+        HookAction::Install => format!("hook: {}\n", manager.install()?),
+        HookAction::Status => format!("{}\n", manager.status()?),
+        HookAction::Uninstall => {
+            if manager.uninstall()? {
+                "uninstalled\n".to_owned()
+            } else {
+                "absent\n".to_owned()
+            }
+        }
+    };
+    io::stdout()
+        .lock()
+        .write_all(message.as_bytes())
+        .map_err(ToolError::Output)?;
+    Ok(CLEAN)
+}
 fn complete_scan(
     mut result: ScanResult,
     threshold: Severity,

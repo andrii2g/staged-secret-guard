@@ -15,6 +15,8 @@ pub enum ToolError {
     #[error(transparent)]
     Staged(#[from] crate::git::staged_source::StagedError),
     #[error(transparent)]
+    Hook(#[from] crate::hook::manager::HookError),
+    #[error(transparent)]
     Report(#[from] crate::report::ReportError),
     #[error("unable to resolve path {path}: {source}")]
     Path {
