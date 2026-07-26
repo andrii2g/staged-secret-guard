@@ -4,7 +4,8 @@ All notable changes will be documented in this file.
 
 ## 0.2.0 - 2026-07-26
 
-- Made hook commands global for the current user by default, with explicit `--local` repository targeting, safe confirmation, ownership-aware uninstall, and isolated scope status.
+- Made hook commands global for the current user by default, with explicit `--local` repository targeting, ownership-aware uninstall, and isolated scope status.
+Invoking `hook install` now authorizes the required scoped `core.hooksPath` change.
 
 ## 0.1.0 - 2026-07-25
 
