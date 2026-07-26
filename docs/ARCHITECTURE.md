@@ -193,6 +193,8 @@ skipped_ignored
 ### `hook`
 
 - Managed hook template.
+- Global-default and repository-local scope resolution.
+- Direct Git configuration reads and writes with ownership metadata.
 - Hook status classification.
 - Atomic installation/removal.
 - No scan implementation.
@@ -228,16 +230,18 @@ Avoid boxed trait objects if a static catalog enum is clearer. The contract matt
 5. Build text and line index.
 6. Run provider rules.
 7. Run PEM rules.
-8. Run URL/connection-string rules.
-9. Run JWT rules.
-10. Run generic assignment rules.
-11. Deduplicate raw match coordinates.
-12. Map offsets to lines and columns.
-13. Filter staged matches by changed-range intersection.
-14. Apply inline suppression.
-15. Apply configured allowlists.
-16. Redact immediately and construct `Finding`.
-17. Sort findings globally.
+8. Run HTTP credential-header rules.
+9. Run URL/connection-string rules.
+10. Run JWT rules.
+11. Run generic assignment rules.
+12. Resolve provider/header/JWT/generic overlap precedence.
+13. Deduplicate raw match coordinates.
+14. Map offsets to lines and columns.
+15. Filter staged matches by changed-range intersection.
+16. Apply inline suppression.
+17. Apply configured allowlists.
+18. Redact immediately and construct `Finding`.
+19. Sort findings globally.
 
 Provider-specific findings should win over a generic finding at the same or contained span. Implement containment-based suppression of the generic result.
 
