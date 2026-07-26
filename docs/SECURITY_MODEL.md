@@ -63,6 +63,10 @@ Controls:
 - managed marker and complete template recognition;
 - unrelated hooks are never overwritten;
 - uninstall removes only a recognized managed hook;
+- a new global hooks path requires interactive confirmation or `--yes`;
+- scope and Git-configuration ownership are recorded in the canonical template;
+- local installation refuses to shadow unrelated global hooks;
+- Git configuration is unset only when Secret Guard created the exact value;
 - writes use temporary sibling plus rename;
 - no `--force` option.
 
@@ -127,6 +131,8 @@ Documented limitations:
 
 - users can invoke `git commit --no-verify`;
 - obfuscated or split credentials may not match;
+- header detection is limited to documented credential-bearing names and supported literal syntaxes;
+- dynamically constructed, encrypted, or externally injected header credentials are not findings;
 - binary and UTF-16 files are not scanned;
 - ignored files are skipped in folder mode unless behavior changes later;
 - tokens with unknown future formats may not match;

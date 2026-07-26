@@ -119,6 +119,19 @@
 - Recognize non-placeholder password fields inside common semicolon-delimited database connection strings, including `Password=`, `Pwd=`, and URI password forms.
 - Require nearby database context to avoid matching arbitrary prose.
 
+### `http-credential-header`
+
+- Severity: `high`
+- Family: `http-header`
+- Recognize literal credential values in:
+  - `Authorization` and `Proxy-Authorization` using Bearer, Basic, Token, APIKey, or API-Key schemes;
+  - `X-API-Key`, `Api-Key`, `X-Auth-Token`, `X-Access-Token`, `X-Auth-Key`, `X-Client-Secret`, `Private-Token`, `X-GitLab-Token`, `X-GitHub-Token`, `X-Vault-Token`, `X-Amz-Security-Token`, and `X-Goog-Api-Key`;
+  - `Cookie` and `Set-Cookie` entries whose cookie name contains `session`, `auth`, `token`, `jwt`, or `secret`.
+- Recognize raw header lines, quoted object/configuration entries, and common quoted header name/value calls.
+- Require at least eight candidate bytes.
+- Reject documented placeholders and environment references before reporting.
+- Report only the credential portion, never the header's complete source line.
+
 ### `jwt-token`
 
 - Severity: `medium`
@@ -212,6 +225,13 @@ When a provider-specific span overlaps a generic assignment span:
 - retain a separate generic finding only when it refers to a distinct value.
 
 When `azure-storage-account-key` overlaps `database-connection-password`, retain the more specific Azure rule.
+
+Header overlap precedence:
+
+- retain a provider-specific finding when its candidate overlaps `http-credential-header`;
+- otherwise retain `http-credential-header` over an overlapping `jwt-token` or `generic-secret-assignment`;
+- a literal Bearer JWT is therefore high severity and blocks at the default threshold;
+- retain separate findings for distinct header values.
 
 ## 4. Pattern maintenance
 
