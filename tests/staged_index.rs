@@ -276,6 +276,38 @@ fn staged_symlink_and_submodule_modes_are_counted_as_skips() {
 }
 
 #[test]
+fn credential_header_obeys_changed_line_filtering_and_blocks_when_modified() {
+    let repo = Repo::init();
+    let original = ["Ab", "12", "-header-", "Credential", "9876"].concat();
+    repo.write(
+        "request.http",
+        &format!("Authorization: Bearer {original}\nsetting=old\n"),
+    );
+    repo.add("request.http");
+    repo.commit("base header");
+
+    repo.write(
+        "request.http",
+        &format!("Authorization: Bearer {original}\nsetting=new\n"),
+    );
+    repo.add("request.http");
+    let unchanged = repo.scan(&["--format", "json"]);
+    assert_eq!(unchanged.status.code(), Some(0));
+    assert!(!String::from_utf8_lossy(&unchanged.stdout).contains("http-credential-header"));
+
+    let replacement = ["Cd", "34", "-header-", "Credential", "6789"].concat();
+    repo.write(
+        "request.http",
+        &format!("Authorization: Bearer {replacement}\nsetting=new\n"),
+    );
+    repo.add("request.http");
+    let changed = repo.scan(&["--format", "json"]);
+    assert_eq!(changed.status.code(), Some(1));
+    let stdout = String::from_utf8_lossy(&changed.stdout);
+    assert!(stdout.contains("http-credential-header"));
+    assert!(!stdout.contains(&replacement));
+}
+#[test]
 fn unmerged_index_and_non_repository_fail_closed() {
     let repo = Repo::init();
     repo.write("conflict.txt", "base\n");

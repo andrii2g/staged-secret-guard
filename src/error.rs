@@ -13,6 +13,8 @@ pub enum ToolError {
     #[error(transparent)]
     Git(#[from] crate::git::client::GitError),
     #[error(transparent)]
+    HookScope(#[from] crate::hook::scoped::ScopeError),
+    #[error(transparent)]
     Staged(#[from] crate::git::staged_source::StagedError),
     #[error(transparent)]
     Hook(#[from] crate::hook::manager::HookError),

@@ -58,6 +58,12 @@ pub static RULES: &[RuleMetadata] = &[
         description: "Google API key structure",
     },
     RuleMetadata {
+        id: "http-credential-header",
+        severity: Severity::High,
+        family: "http-header",
+        description: "HTTP header containing a literal credential",
+    },
+    RuleMetadata {
         id: "jwt-token",
         severity: Severity::Medium,
         family: "structured-token",
@@ -136,6 +142,6 @@ mod tests {
         sorted.sort_unstable();
         sorted.dedup();
         assert_eq!(ids, sorted);
-        assert_eq!(ids.len(), 18);
+        assert_eq!(ids.len(), 19);
     }
 }

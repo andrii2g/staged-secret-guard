@@ -11,7 +11,9 @@ use crate::{
 };
 
 const MARKER_PREFIX: &str = "# Managed by secret-guard";
-const MARKER: &str = "# Managed by secret-guard (version 1)";
+const MARKER: &str = "# Managed by secret-guard (version 2)";
+const SCOPE_PREFIX: &str = "# secret-guard-scope: ";
+const CONFIG_PREFIX: &str = "# secret-guard-config: ";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookStatus {
@@ -32,6 +34,27 @@ impl fmt::Display for HookStatus {
             Self::Unrelated => "unrelated",
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ManagedScope {
+    Global,
+    Local,
+}
+
+impl fmt::Display for ManagedScope {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Global => "global",
+            Self::Local => "local",
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ManagedMetadata {
+    pub scope: ManagedScope,
+    pub config_owned: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,9 +86,21 @@ impl HookManager {
             &["rev-parse", "--git-path", "hooks/pre-commit"],
             "rev-parse --git-path",
         )?;
+        Self::from_path(path, executable, ManagedScope::Local, false)
+    }
+
+    pub fn from_path(
+        path: PathBuf,
+        executable: &Path,
+        scope: ManagedScope,
+        config_owned: bool,
+    ) -> Result<Self, HookError> {
+        let config = if config_owned { "managed" } else { "external" };
         let executable = posix_executable_path(executable)?;
         let quoted = quote_posix(&executable);
-        let template = format!("#!/bin/sh\n{MARKER}\nexec {quoted} scan --staged\n");
+        let template = format!(
+            "#!/bin/sh\n{MARKER}\n{SCOPE_PREFIX}{scope}\n{CONFIG_PREFIX}{config}\nexec {quoted} scan --staged\n"
+        );
         let chaining_snippet = format!("{quoted} scan --staged");
         Ok(Self {
             path,
@@ -76,6 +111,22 @@ impl HookManager {
 
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn metadata(path: &Path) -> Result<Option<ManagedMetadata>, HookError> {
+        match fs::read(path) {
+            Ok(bytes) => {
+                let Ok(text) = std::str::from_utf8(&bytes) else {
+                    return Ok(None);
+                };
+                Ok(parse_metadata(text))
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(source) => Err(HookError::Read {
+                path: path.display().to_string(),
+                source,
+            }),
+        }
     }
 
     pub fn status(&self) -> Result<HookStatus, HookError> {
@@ -152,11 +203,47 @@ fn classify_other(bytes: &[u8]) -> HookStatus {
 
 fn is_canonical_managed(text: &str) -> bool {
     let lines = text.lines().collect::<Vec<_>>();
-    lines.len() == 3
+    let legacy = lines.len() == 3
+        && lines[0] == "#!/bin/sh"
+        && lines[1] == "# Managed by secret-guard (version 1)"
+        && lines[2].starts_with("exec '")
+        && lines[2].ends_with("' scan --staged");
+    let current = lines.len() == 5
         && lines[0] == "#!/bin/sh"
         && lines[1] == MARKER
-        && lines[2].starts_with("exec '")
-        && lines[2].ends_with("' scan --staged")
+        && matches!(
+            lines[2],
+            "# secret-guard-scope: global" | "# secret-guard-scope: local"
+        )
+        && matches!(
+            lines[3],
+            "# secret-guard-config: managed" | "# secret-guard-config: external"
+        )
+        && lines[4].starts_with("exec '")
+        && lines[4].ends_with("' scan --staged");
+    legacy || current
+}
+
+fn parse_metadata(text: &str) -> Option<ManagedMetadata> {
+    if !is_canonical_managed(text) {
+        return None;
+    }
+    let lines = text.lines().collect::<Vec<_>>();
+    if lines.len() == 3 {
+        return Some(ManagedMetadata {
+            scope: ManagedScope::Local,
+            config_owned: false,
+        });
+    }
+    let scope = match lines[2].strip_prefix(SCOPE_PREFIX)? {
+        "global" => ManagedScope::Global,
+        "local" => ManagedScope::Local,
+        _ => return None,
+    };
+    Some(ManagedMetadata {
+        scope,
+        config_owned: lines[3].strip_prefix(CONFIG_PREFIX)? == "managed",
+    })
 }
 
 pub fn quote_posix(value: &str) -> String {
@@ -248,8 +335,7 @@ mod tests {
 
     #[test]
     fn classifies_stale_modified_and_unrelated_content() {
-        let stale =
-            "#!/bin/sh\n# Managed by secret-guard (version 1)\nexec '/old/path' scan --staged\n";
+        let stale = "#!/bin/sh\n# Managed by secret-guard (version 2)\n# secret-guard-scope: local\n# secret-guard-config: external\nexec '/old/path' scan --staged\n";
         assert_eq!(
             classify_other(stale.as_bytes()),
             HookStatus::StaleExecutable

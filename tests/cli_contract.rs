@@ -41,21 +41,42 @@ fn path_and_staged_are_mutually_exclusive() {
 
 #[test]
 fn hook_actions_parse() {
-    for (name, expected) in [
-        ("install", HookAction::Install),
-        ("status", HookAction::Status),
-        ("uninstall", HookAction::Uninstall),
-    ] {
+    for name in ["install", "status", "uninstall"] {
         let cli =
             Cli::try_parse_from(["secret-guard", "hook", name]).expect("hook action should parse");
         let Some(Command::Hook { action }) = cli.command else {
             panic!("expected hook command");
         };
-        assert_eq!(
-            std::mem::discriminant(&action),
-            std::mem::discriminant(&expected)
-        );
+        assert!(matches!(
+            (name, action),
+            ("install", HookAction::Install(_))
+                | ("status", HookAction::Status(_))
+                | ("uninstall", HookAction::Uninstall(_))
+        ));
     }
+}
+
+#[test]
+fn hook_scope_arguments_parse_and_yes_is_rejected() {
+    let cli = Cli::try_parse_from([
+        "secret-guard",
+        "hook",
+        "install",
+        "--local",
+        "--repository",
+        ".",
+    ])
+    .expect("local hook arguments should parse");
+    let Some(Command::Hook {
+        action: HookAction::Install(arguments),
+    }) = cli.command
+    else {
+        panic!("expected hook install");
+    };
+    assert!(arguments.local);
+    assert!(arguments.repository.is_some());
+    assert!(Cli::try_parse_from(["secret-guard", "hook", "status", "--repository", "."]).is_err());
+    assert!(Cli::try_parse_from(["secret-guard", "hook", "install", "--yes"]).is_err());
 }
 
 #[test]

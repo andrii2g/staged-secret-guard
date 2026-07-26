@@ -4,12 +4,12 @@ use std::{
 };
 
 use crate::{
-    cli::{Cli, Command, HookAction, OutputFormat, RulesAction, SeverityArg},
+    cli::{Cli, Command, HookAction, HookTargetArgs, OutputFormat, RulesAction, SeverityArg},
     config::Config,
     error::ToolError,
     exit_code::{CLEAN, FINDINGS, OPERATIONAL_ERROR},
     git::{client::GitClient, staged_source::scan_staged},
-    hook::manager::HookManager,
+    hook::scoped::{HookResolution, HookTarget, ScopedHook, ScopedStatus},
     report,
     rules::catalog,
     scan::{ScanResult, folder_source::scan_folder},
@@ -105,24 +105,44 @@ fn execute_rules(format: OutputFormat, output: Option<&Path>) -> Result<u8, Tool
     Ok(CLEAN)
 }
 fn execute_hook(action: HookAction) -> Result<u8, ToolError> {
-    let current = std::env::current_dir().map_err(|source| ToolError::Path {
-        path: ".".to_owned(),
-        source,
-    })?;
-    let client = GitClient::discover(&current)?;
     let executable = std::env::current_exe().map_err(|source| ToolError::Path {
         path: "current executable".to_owned(),
         source,
     })?;
-    let manager = HookManager::new(&client, &executable)?;
     let message = match action {
-        HookAction::Install => format!("hook: {}\n", manager.install()?),
-        HookAction::Status => format!("{}\n", manager.status()?),
-        HookAction::Uninstall => {
-            if manager.uninstall()? {
-                "uninstalled\n".to_owned()
-            } else {
-                "absent\n".to_owned()
+        HookAction::Install(arguments) => {
+            match ScopedHook::resolve(hook_target(arguments)?, &executable)? {
+                HookResolution::CoveredByGlobal => "hook(local): covered-by-global\n".to_owned(),
+                HookResolution::Managed(manager) => {
+                    let outcome = manager.install()?;
+                    format!(
+                        "hook({}): {outcome}\npath: {}\n",
+                        manager.scope(),
+                        manager.path().display()
+                    )
+                }
+            }
+        }
+        HookAction::Status(arguments) => {
+            match ScopedHook::resolve(hook_target(arguments)?, &executable)? {
+                HookResolution::CoveredByGlobal => {
+                    format!("{}\n", ScopedStatus::CoveredByGlobal)
+                }
+                HookResolution::Managed(manager) => format!("{}\n", manager.status()?),
+            }
+        }
+        HookAction::Uninstall(arguments) => {
+            match ScopedHook::resolve(hook_target(arguments)?, &executable)? {
+                HookResolution::CoveredByGlobal => {
+                    format!("{}\n", ScopedStatus::CoveredByGlobal)
+                }
+                HookResolution::Managed(manager) => {
+                    if manager.uninstall()? {
+                        "uninstalled\n".to_owned()
+                    } else {
+                        "absent\n".to_owned()
+                    }
+                }
             }
         }
     };
@@ -132,6 +152,22 @@ fn execute_hook(action: HookAction) -> Result<u8, ToolError> {
         .map_err(ToolError::Output)?;
     Ok(CLEAN)
 }
+
+fn hook_target(arguments: HookTargetArgs) -> Result<HookTarget, ToolError> {
+    if arguments.local {
+        let path = match arguments.repository {
+            Some(path) => path,
+            None => std::env::current_dir().map_err(|source| ToolError::Path {
+                path: ".".to_owned(),
+                source,
+            })?,
+        };
+        Ok(HookTarget::Local(path))
+    } else {
+        Ok(HookTarget::Global)
+    }
+}
+
 fn complete_scan(
     mut result: ScanResult,
     threshold: Severity,

@@ -19,7 +19,7 @@ fn console_rule_listing_is_sorted_and_complete() {
     let mut sorted = ids.clone();
     sorted.sort_unstable();
     assert_eq!(ids, sorted);
-    assert_eq!(ids.len(), 18);
+    assert_eq!(ids.len(), 19);
 }
 
 #[test]
@@ -32,7 +32,7 @@ fn json_rule_listing_has_stable_schema_and_metadata() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("JSON listing");
     assert_eq!(value["schemaVersion"], 1);
     let rules = value["rules"].as_array().expect("rules array");
-    assert_eq!(rules.len(), 18);
+    assert_eq!(rules.len(), 19);
     assert_eq!(rules[0]["id"], "aws-access-key-id");
     assert!(rules.iter().all(|rule| {
         rule.get("id").is_some()

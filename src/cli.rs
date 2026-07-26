@@ -60,14 +60,29 @@ pub struct ScanArgs {
     pub staged: bool,
 }
 
-#[derive(Debug, Clone, Copy, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub enum HookAction {
     /// Install or update the fully managed pre-commit hook.
-    Install,
+    Install(HookTargetArgs),
     /// Print the stable managed-hook status identifier.
-    Status,
+    Status(HookTargetArgs),
     /// Remove only a recognized fully managed hook.
-    Uninstall,
+    Uninstall(HookTargetArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct HookTargetArgs {
+    /// Explicitly target the current operating-system user's Git configuration.
+    #[arg(long, conflicts_with = "local")]
+    pub global: bool,
+
+    /// Target one local Git repository instead of the global user configuration.
+    #[arg(long, conflicts_with = "global")]
+    pub local: bool,
+
+    /// Repository to target with --local; defaults to the current directory.
+    #[arg(long, value_name = "PATH", requires = "local")]
+    pub repository: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, Subcommand)]

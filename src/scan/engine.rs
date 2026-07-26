@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::{
     config::Config,
     finding::{Finding, RuleId, ScanSummary, sort_findings},
-    rules::{generic, pem, provider, suspicious_path},
+    rules::{generic, http_header, pem, provider, suspicious_path},
     scan::{
         file_input::{FileInput, LineRange},
         text::{CandidateMatch, PreparedText, SkipReason, redact},
@@ -71,6 +71,7 @@ impl<'a> ScannerEngine<'a> {
 
         let mut matches = Vec::new();
         provider::detect(&prepared, &mut matches);
+        http_header::detect(&prepared, &mut matches);
         pem::detect(&prepared, &mut matches);
         generic::detect(&prepared, &input.relative_path, &mut matches);
         suppress_overlaps(&mut matches);
@@ -144,6 +145,18 @@ fn suppress_overlaps(matches: &mut Vec<CandidateMatch<'_>>) {
         .map(|matched| (matched.rule_id, matched.byte_start, matched.byte_end))
         .collect::<Vec<_>>();
     matches.retain(|matched| {
+        if matched.rule_id == "http-credential-header" {
+            return !specific_spans.iter().any(|(rule, start, end)| {
+                is_provider_specific(rule)
+                    && spans_overlap(matched.byte_start, matched.byte_end, *start, *end)
+            });
+        }
+        if matched.rule_id == "jwt-token" {
+            return !specific_spans.iter().any(|(rule, start, end)| {
+                *rule == "http-credential-header"
+                    && spans_overlap(matched.byte_start, matched.byte_end, *start, *end)
+            });
+        }
         if matched.rule_id == "generic-secret-assignment" {
             return !specific_spans.iter().any(|(_, start, end)| {
                 spans_overlap(matched.byte_start, matched.byte_end, *start, *end)
@@ -166,6 +179,17 @@ const fn spans_overlap(
     right_end: usize,
 ) -> bool {
     left_start < right_end && right_start < left_end
+}
+
+fn is_provider_specific(rule_id: &str) -> bool {
+    !matches!(
+        rule_id,
+        "generic-secret-assignment"
+            | "http-credential-header"
+            | "jwt-token"
+            | "database-connection-password"
+            | "basic-auth-url"
+    )
 }
 
 fn is_inline_suppressed(prepared: &PreparedText<'_>, match_line: usize, rule_id: &str) -> bool {
@@ -324,5 +348,37 @@ mod tests {
         assert_eq!(findings[0].rule_id.as_str(), "github-token");
         let json = serde_json::to_string(&findings).expect("serialize findings");
         assert!(!json.contains(&token));
+    }
+
+    #[test]
+    fn header_context_blocks_jwt_and_provider_rule_wins_overlap() {
+        let jwt = ["eyJ", "hbGciOiJub25lIn0.", "cGF5bG9hZA.", "c2lnbmF0dXJl"].concat();
+        let jwt_findings = scan(
+            &Config::default(),
+            &input(
+                "request.http",
+                format!("Authorization: Bearer {jwt}"),
+                vec![line(1, 1)],
+            ),
+        );
+        assert_eq!(jwt_findings.len(), 1);
+        assert_eq!(jwt_findings[0].rule_id.as_str(), "http-credential-header");
+        assert!(
+            !serde_json::to_string(&jwt_findings)
+                .expect("serialize header finding")
+                .contains(&jwt)
+        );
+
+        let provider = format!("{}{}", ["g", "hp", "_"].concat(), "A".repeat(36));
+        let provider_findings = scan(
+            &Config::default(),
+            &input(
+                "request.http",
+                format!("X-API-Key: {provider}"),
+                vec![line(1, 1)],
+            ),
+        );
+        assert_eq!(provider_findings.len(), 1);
+        assert_eq!(provider_findings[0].rule_id.as_str(), "github-token");
     }
 }

@@ -34,9 +34,13 @@ impl Repo {
     }
 
     fn guard(&self, arguments: &[&str]) -> Output {
+        let mut scoped = arguments.to_vec();
+        if arguments.first() == Some(&"hook") {
+            scoped.push("--local");
+        }
         Command::new(env!("CARGO_BIN_EXE_secret-guard"))
             .current_dir(self.path())
-            .args(arguments)
+            .args(scoped)
             .output()
             .expect("run secret guard")
     }
@@ -84,12 +88,10 @@ fn install_status_idempotence_update_and_uninstall() {
     assert_eq!(repo.guard(&["hook", "status"]).stdout, b"absent\n");
     let install = repo.guard(&["hook", "install"]);
     assert_eq!(install.status.code(), Some(0));
-    assert_eq!(install.stdout, b"hook: installed\n");
+    assert!(String::from_utf8_lossy(&install.stdout).contains("hook(local): installed"));
     assert_eq!(repo.guard(&["hook", "status"]).stdout, b"installed\n");
-    assert_eq!(
-        repo.guard(&["hook", "install"]).stdout,
-        b"hook: already installed\n"
-    );
+    let repeated = repo.guard(&["hook", "install"]);
+    assert!(String::from_utf8_lossy(&repeated.stdout).contains("already installed"));
 
     let hook_path = repo.hook_path();
     let template = fs::read_to_string(&hook_path).expect("managed hook");
@@ -97,7 +99,7 @@ fn install_status_idempotence_update_and_uninstall() {
         .lines()
         .enumerate()
         .map(|(index, line)| {
-            if index == 2 {
+            if index == 4 {
                 "exec '/old/secret-guard' scan --staged"
             } else {
                 line
@@ -111,10 +113,8 @@ fn install_status_idempotence_update_and_uninstall() {
         repo.guard(&["hook", "status"]).stdout,
         b"stale-executable\n"
     );
-    assert_eq!(
-        repo.guard(&["hook", "install"]).stdout,
-        b"hook: updated managed hook\n"
-    );
+    let updated = repo.guard(&["hook", "install"]);
+    assert!(String::from_utf8_lossy(&updated.stdout).contains("updated managed hook"));
     assert_eq!(repo.guard(&["hook", "uninstall"]).stdout, b"uninstalled\n");
     assert!(!hook_path.exists());
     assert_eq!(repo.guard(&["hook", "uninstall"]).stdout, b"absent\n");
@@ -219,7 +219,7 @@ fn hook_path_resolution_works_from_linked_worktree() {
 
     let install = Command::new(env!("CARGO_BIN_EXE_secret-guard"))
         .current_dir(&linked)
-        .args(["hook", "install"])
+        .args(["hook", "install", "--local"])
         .output()
         .expect("install from worktree");
     assert_eq!(
@@ -230,7 +230,7 @@ fn hook_path_resolution_works_from_linked_worktree() {
     );
     let status = Command::new(env!("CARGO_BIN_EXE_secret-guard"))
         .current_dir(&linked)
-        .args(["hook", "status"])
+        .args(["hook", "status", "--local"])
         .output()
         .expect("status from worktree");
     assert_eq!(status.stdout, b"installed\n");
