@@ -8,6 +8,9 @@ Primary references used to prepare this implementation pack:
 - Cargo manifest and `rust-version`: `https://doc.rust-lang.org/cargo/reference/manifest.html`
 - Cargo Rust version contract: `https://doc.rust-lang.org/cargo/reference/rust-version.html`
 - Git hooks: `https://git-scm.com/docs/githooks`
+- Git configuration: `https://git-scm.com/docs/git-config`
+- HTTP semantics and Authorization fields: `https://www.rfc-editor.org/rfc/rfc9110.html`
+- HTTP cookies: `https://www.rfc-editor.org/rfc/rfc6265.html`
 - Git diff: `https://git-scm.com/docs/git-diff`
 - Git diff format: `https://git-scm.com/docs/diff-format`
 - Git index file listing: `https://git-scm.com/docs/git-ls-files`
