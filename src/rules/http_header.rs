@@ -9,7 +9,6 @@ use crate::{
 
 const RULE_ID: &str = "http-credential-header";
 const MESSAGE: &str = "HTTP header contains a literal credential value.";
-const MIN_CANDIDATE_LENGTH: usize = 8;
 
 static HEADER_PAIR: LazyLock<Option<Regex>> = LazyLock::new(|| {
     Regex::new(
@@ -145,10 +144,7 @@ fn emit_candidate<'a>(candidate: &'a str, byte_start: usize, sink: &mut Vec<Cand
         return;
     }
     let candidate = candidate.trim_end_matches([',', '}', ']', ')']).trim_end();
-    if candidate.len() < MIN_CANDIDATE_LENGTH
-        || is_placeholder(candidate)
-        || is_environment_reference(candidate)
-    {
+    if candidate.is_empty() || is_placeholder(candidate) || is_environment_reference(candidate) {
         return;
     }
     sink.push(CandidateMatch {
@@ -225,13 +221,40 @@ mod tests {
     }
 
     #[test]
+    fn detects_short_literals_but_allows_missing_credentials() {
+        let short = ["123", "abc"].concat();
+        for (label, text) in [
+            ("authorization", format!("Authorization: Bearer {short}")),
+            ("proxy", format!("'Proxy-Authorization': 'Basic {short}'")),
+            ("api-key", format!("X-API-Key: {short}")),
+            (
+                "call",
+                format!("headers.Add(\"X-Auth-Token\", \"{short}\")"),
+            ),
+            ("cookie", format!("Cookie: session={short}")),
+        ] {
+            assert_eq!(count(&text), 1, "missed short {label} credential");
+        }
+
+        for text in [
+            "Authorization: Bearer",
+            "Authorization: Bearer ",
+            "\"Authorization\": \"Bearer \"",
+            "headers.Add(\"Authorization\", \"Bearer\")",
+            "X-API-Key:",
+            "Cookie: session=",
+        ] {
+            assert_eq!(count(text), 0, "empty credential unexpectedly reported");
+        }
+    }
+
+    #[test]
     fn rejects_benign_headers_placeholders_references_and_cookies() {
         let api_key_placeholder = ["X-API", "-Key: your-api-key"].concat();
         for text in [
             "Content-Type: application/json",
             "Authorization: Bearer ${TOKEN}",
             api_key_placeholder.as_str(),
-            "X-Auth-Token: short",
             "Cookie: theme=dark; language=en-US",
             "Authorization: Bearer {value}",
             "Authorization: Digest username=value",

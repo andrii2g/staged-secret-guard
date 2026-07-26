@@ -44,7 +44,7 @@ pub(crate) fn detect<'a>(
 
         if is_placeholder(candidate)
             || is_environment_reference(candidate)
-            || looks_like_code_expression(candidate)
+            || (!quoted && looks_like_code_expression(candidate))
         {
             continue;
         }
@@ -112,6 +112,34 @@ fn looks_like_code_expression(candidate: &str) -> bool {
     candidate.starts_with(['\\', '{', '<'])
         || candidate.contains("::")
         || (candidate.contains('<') && candidate.contains('>'))
+        || looks_like_call(candidate)
+        || looks_like_index_lookup(candidate)
+}
+
+fn looks_like_call(candidate: &str) -> bool {
+    let Some(open) = candidate.find('(') else {
+        return false;
+    };
+    candidate.ends_with(')') && is_identifier_path(&candidate[..open])
+}
+
+fn looks_like_index_lookup(candidate: &str) -> bool {
+    let Some(open) = candidate.find('[') else {
+        return false;
+    };
+    candidate.ends_with(']') && is_identifier_path(&candidate[..open])
+}
+
+fn is_identifier_path(value: &str) -> bool {
+    !value.is_empty()
+        && value.split('.').all(|segment| {
+            let mut characters = segment.chars();
+            characters.next().is_some_and(|character| {
+                character.is_ascii_alphabetic() || matches!(character, '_' | '$')
+            }) && characters.all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '_' | '$')
+            })
+        })
 }
 fn character_classes(candidate: &str) -> usize {
     let lower = candidate
@@ -187,5 +215,22 @@ mod tests {
         ] {
             assert!(detected(&format!("password = {reference}"), "src/config.rs").is_empty());
         }
+    }
+
+    #[test]
+    fn rejects_runtime_expressions_but_keeps_expression_shaped_string_literals() {
+        for expression in [
+            "sessionStorage.getItem(\"workbench-key\")",
+            "configuration[\"ApiKey\"]",
+            "readSecret()",
+        ] {
+            assert!(detected(&format!("apiKey = {expression}"), "src/client.js").is_empty());
+        }
+
+        let literal = ["sessionStorage", ".getItem(", "Ab12-complex-Value9876", ")"].concat();
+        assert_eq!(
+            detected(&format!("apiKey = \"{literal}\""), "src/client.js"),
+            vec![Severity::High]
+        );
     }
 }

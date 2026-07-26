@@ -82,12 +82,13 @@ installed
 stale-executable
 modified-managed
 unrelated
-error
 covered-by-global
 shadowed
 ```
 
 Human-readable text may accompany the identifier.
+
+Operational hook failures are not stable status identifiers. They are written to stderr and return exit `2`.
 
 `covered-by-global` applies to local status when the effective managed global hook already protects the repository. `shadowed` means a recognized managed hook exists but the effective Git configuration does not select it.
 

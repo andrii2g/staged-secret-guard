@@ -70,43 +70,51 @@ Configuration is discovered in `.secret-guard.toml` at the repository or scan ro
 
 ## Configure the Git pre-commit hook
 
-### Install the managed hook
+### Install globally by default
 
-From inside the repository that should be protected, run:
+Run this once from any directory:
 
 ```text
 secret-guard hook install
+```
+
+The explicit install command immediately creates the required user-level `core.hooksPath`; Installing or updating the executable alone never changes Git configuration.
+
+After a global path is created, Git stops selecting repository-local hook directories. Review the existing-hooks section in the [Windows guide](GLOBAL_HOOKS_WINDOWS.md#existing-hooks-and-overrides) or [Linux guide](GLOBAL_HOOKS_LINUX.md#existing-hooks-and-overrides) when that matters; Secret Guard still refuses to overwrite an unrelated hook in the selected shared directory.
+
+Check the global state from any directory:
+
+```text
 secret-guard hook status
 ```
 
-Successful status output is `installed`. Installation creates a POSIX-compatible `pre-commit` script containing the managed marker and a safely quoted absolute executable path. The script runs:
+The installer adopts an existing global hooks directory when its `pre-commit` slot is absent or already managed. Otherwise it creates an absolute user-owned hooks directory and records ownership in the managed hook. It never overwrites or automatically chains unrelated hook content.
+
+Platform-specific examples:
+
+- [Global Git client hook on Windows](GLOBAL_HOOKS_WINDOWS.md)
+- [Global Git client hook on Linux](GLOBAL_HOOKS_LINUX.md)
+
+### Protect only one repository
 
 ```text
-secret-guard scan --staged
+secret-guard hook install --local
+secret-guard hook status --local
 ```
 
-The actual generated hook uses the absolute executable path. On Unix it is made executable. A scan result of `1` blocks the commit, and an operational failure with result `2` also blocks it.
-
-Installation is idempotent. Repeating `secret-guard hook install` reports `already installed`. If the executable has moved, status reports `stale-executable`; running install again updates a recognized, otherwise unchanged managed hook to the current executable path.
-
-Install the hook separately in each clone or environment because its executable path is machine-specific.
-
-### Hook location, custom hooks paths, and worktrees
-
-The tool asks Git for the effective hook location with:
+Run those commands inside the repository, or select it from another directory:
 
 ```text
-git rev-parse --git-path hooks/pre-commit
+secret-guard hook install --local --repository /path/to/repository
 ```
 
-This respects Git's effective hooks directory, including `core.hooksPath`, and resolves the correct Git path from a linked worktree. To use a repository-specific hooks directory, configure Git before installing:
+If the effective managed global hook already protects the selected repository, local installation reports `covered-by-global` and creates no redundant override. A local override is created only when it will not silently disable unrelated global hooks.
 
-```text
-git config core.hooksPath .githooks
-secret-guard hook install
-```
+### Managed hook behavior
 
-Run status, install, and uninstall after changing `core.hooksPath`; each command operates on the hook path Git currently reports. Because the generated managed hook contains an absolute, machine-specific executable path, do not treat it as a portable hook to commit and share. Each developer or CI environment should install its own hook.
+The installed POSIX-compatible `pre-commit` script contains the managed scope, Git-configuration ownership, and safely quoted absolute executable path. It runs `secret-guard scan --staged`. On Unix it is executable. Scan result `1` and operational result `2` both block the commit.
+
+Installation is idempotent. If the executable moves, status reports `stale-executable`; installing again updates only an otherwise canonical managed hook. Generated hooks are machine-specific and must not be committed as portable project files.
 
 ### Existing hooks and manual chaining
 
@@ -138,14 +146,17 @@ Possible states are:
 - `stale-executable`;
 - `modified-managed`;
 - `unrelated`.
+- `covered-by-global`;
+- `shadowed`.
 
 Remove an exact recognized managed hook with:
 
 ```text
 secret-guard hook uninstall
+secret-guard hook uninstall --local --repository /path/to/repository
 ```
 
-Uninstalling an absent hook reports `absent`. Uninstall refuses to delete unrelated or modified hook content. A stale but otherwise canonical managed hook can be removed safely.
+Hook actions are global by default. Uninstalling an absent hook reports `absent`. Uninstall refuses to delete unrelated or modified hook content. It unsets `core.hooksPath` only when the managed hook records that Secret Guard created that exact scoped value.
 
 ### Verify commit behavior
 

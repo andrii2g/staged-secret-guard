@@ -165,9 +165,10 @@ impl Config {
 
         let mut exclusion_matchers = Vec::with_capacity(exclusion_paths.len());
         for pattern in &exclusion_paths {
-            exclusion_matchers.push(compile_glob(pattern).map_err(|()| {
-                ConfigError::semantic(&path, &format!("invalid exclusion glob: {pattern}"))
-            })?);
+            exclusion_matchers.push(
+                compile_glob(pattern)
+                    .map_err(|()| ConfigError::semantic(&path, "invalid exclusion glob"))?,
+            );
         }
 
         let mut allowlist = Vec::with_capacity(raw.allowlist.len());
@@ -363,5 +364,28 @@ reason = "Synthetic fragments"
         ] {
             assert!(parse(source).is_err(), "configuration unexpectedly valid");
         }
+    }
+
+    #[test]
+    fn invalid_exclusion_glob_error_does_not_echo_sensitive_pattern() {
+        let prefix = ["g", "hp", "_"].concat();
+        let candidate = format!("{prefix}{}", "A".repeat(36));
+        let malformed_pattern = format!("[{candidate}");
+        let source = format!("[exclude]\npaths = [\"{malformed_pattern}\"]");
+
+        let error = match parse(&source) {
+            Ok(_) => panic!("malformed exclusion glob unexpectedly parsed"),
+            Err(error) => error,
+        };
+        let rendered = error.to_string();
+        let debug_rendered = format!("{error:?}");
+
+        assert!(rendered.contains("invalid exclusion glob"));
+        assert!(!rendered.contains(&candidate));
+        assert!(!rendered.contains(&malformed_pattern));
+        assert!(!rendered.contains(&source));
+        assert!(!debug_rendered.contains(&candidate));
+        assert!(!debug_rendered.contains(&malformed_pattern));
+        assert!(!debug_rendered.contains(&source));
     }
 }

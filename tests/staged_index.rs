@@ -295,7 +295,7 @@ fn credential_header_obeys_changed_line_filtering_and_blocks_when_modified() {
     assert_eq!(unchanged.status.code(), Some(0));
     assert!(!String::from_utf8_lossy(&unchanged.stdout).contains("http-credential-header"));
 
-    let replacement = ["Cd", "34", "-header-", "Credential", "6789"].concat();
+    let replacement = ["123", "abc"].concat();
     repo.write(
         "request.http",
         &format!("Authorization: Bearer {replacement}\nsetting=new\n"),

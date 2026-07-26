@@ -13,6 +13,11 @@
 
 ## 2. Rules
 
+`secret-guard rules list` exposes one static catalog severity for each rule ID. For rules whose findings can have different severities, that catalog value describes the rule entry and does not replace the severity calculated for an individual finding:
+
+- `generic-secret-assignment` is listed as `high`, while individual findings are `medium` or `high` according to the score below;
+- `suspicious-file-path` is listed as `medium`, while individual findings are `medium`, `high`, or `critical` according to the matched path group below.
+
 ### `private-key-pem`
 
 - Severity: `critical`
@@ -128,7 +133,8 @@
   - `X-API-Key`, `Api-Key`, `X-Auth-Token`, `X-Access-Token`, `X-Auth-Key`, `X-Client-Secret`, `Private-Token`, `X-GitLab-Token`, `X-GitHub-Token`, `X-Vault-Token`, `X-Amz-Security-Token`, and `X-Goog-Api-Key`;
   - `Cookie` and `Set-Cookie` entries whose cookie name contains `session`, `auth`, `token`, `jwt`, or `secret`.
 - Recognize raw header lines, quoted object/configuration entries, and common quoted header name/value calls.
-- Require at least eight candidate bytes.
+- Report every non-empty literal credential value regardless of length.
+- Treat a recognized authorization scheme without a credential value, such as `Authorization: Bearer`, as empty and do not report it.
 - Reject documented placeholders and environment references before reporting.
 - Report only the credential portion, never the header's complete source line.
 
@@ -142,6 +148,7 @@
 ### `generic-secret-assignment`
 
 - Severity: computed `medium` or `high`
+- Static `rules list` severity: `high`
 - Family: `generic-context`
 - Sensitive key names include normalized variants of:
   - password, passwd, pwd;
@@ -164,11 +171,12 @@
   - score at least 70: `high`;
   - score from 50 through 69: `medium`;
   - score below 50: no finding.
-- Reject placeholders and references before scoring.
+- Reject placeholders, environment references, and unquoted runtime call or index expressions before scoring. Quoted values remain literals even when their text resembles an expression.
 
 ### `suspicious-file-path`
 
 - Severity: path-dependent
+- Static `rules list` severity: `medium`
 - Family: `path`
 
 Path groups:

@@ -43,7 +43,7 @@ Controls:
 Controls:
 
 - internal candidate type does not derive `Debug`;
-- no logging framework in v0.1;
+- no logging framework in version 0.2;
 - no debug dumps of regex captures;
 - tests assert candidate absence from stdout and stderr.
 
@@ -63,7 +63,7 @@ Controls:
 - managed marker and complete template recognition;
 - unrelated hooks are never overwritten;
 - uninstall removes only a recognized managed hook;
-- a new global hooks path requires interactive confirmation or `--yes`;
+- Git configuration changes occur only in response to an explicit `hook install`; installing or updating the binary has no Git side effect;
 - scope and Git-configuration ownership are recorded in the canonical template;
 - local installation refuses to shadow unrelated global hooks;
 - Git configuration is unset only when Secret Guard created the exact value;
@@ -138,7 +138,7 @@ Documented limitations:
 - tokens with unknown future formats may not match;
 - no live provider verification is performed.
 
-A CI scan is recommended as a second layer, but v0.1 remains a local tool.
+A CI scan is recommended as a second layer, but version 0.2 remains a local tool.
 
 ## 7. Security review gates
 
