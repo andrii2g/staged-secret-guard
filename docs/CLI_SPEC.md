@@ -49,10 +49,20 @@ secret-guard --fail-on medium scan --staged
 ## 4. Hook command
 
 ```text
-secret-guard hook install
-secret-guard hook status
-secret-guard hook uninstall
+secret-guard hook install [--global | --local] [--repository <PATH>]
+secret-guard hook status [--global | --local] [--repository <PATH>]
+secret-guard hook uninstall [--global | --local] [--repository <PATH>]
 ```
+
+Scope rules:
+
+- no scope option means global user scope;
+- `--global` explicitly selects the same global scope;
+- global commands may run outside a repository;
+- `--local` selects one repository;
+- `--repository <PATH>` requires `--local` and otherwise the current directory is used.
+
+Installing the binary alone never changes Git configuration. Invoking `hook install` explicitly authorizes Secret Guard to create the required scope-specific `core.hooksPath`; installation proceeds without an additional prompt in both interactive and non-interactive environments. Existing-path adoption, conflict refusal, ownership tracking, and rollback rules still apply.
 
 ### Install output states
 
@@ -73,9 +83,13 @@ stale-executable
 modified-managed
 unrelated
 error
+covered-by-global
+shadowed
 ```
 
 Human-readable text may accompany the identifier.
+
+`covered-by-global` applies to local status when the effective managed global hook already protects the repository. `shadowed` means a recognized managed hook exists but the effective Git configuration does not select it.
 
 ### Uninstall
 
