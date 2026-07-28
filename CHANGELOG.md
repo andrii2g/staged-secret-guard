@@ -2,6 +2,10 @@
 
 All notable changes will be documented in this file.
 
+## 0.3.0 - 2026-07-27
+
+- Stopped treating configuration-file with `MASKED`/`*MASKED*` placeholders.
+
 ## 0.2.0 - 2026-07-26
 
 - Made hook commands global for the current user by default, with explicit `--local` repository targeting, ownership-aware uninstall, and isolated scope status.
@@ -10,6 +14,7 @@ All notable changes will be documented in this file.
 - Blocked non-empty credential-header literals of every length while allowing authorization schemes without a credential value.
 - Added a tag/manual release workflow that packages Linux, Windows, and macOS binaries with the license and SHA-256 checksums.
 - Stopped treating unquoted runtime calls and index lookups assigned to sensitive variables as literal secrets.
+
 
 ## 0.1.0 - 2026-07-25
 

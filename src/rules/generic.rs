@@ -26,6 +26,9 @@ pub(crate) fn detect<'a>(
     };
     let text = input.as_str();
     for captures in pattern.captures_iter(text) {
+        let Some(key_match) = captures.name("key") else {
+            continue;
+        };
         let Some(value_match) = captures.name("value") else {
             continue;
         };
@@ -45,6 +48,8 @@ pub(crate) fn detect<'a>(
         if is_placeholder(candidate)
             || is_environment_reference(candidate)
             || (!quoted && looks_like_code_expression(candidate))
+            || (is_connection_string_key(key_match.as_str())
+                && looks_like_configuration_path(candidate))
         {
             continue;
         }
@@ -212,6 +217,7 @@ mod tests {
             "%PASSWORD%",
             "process.env.PASSWORD",
             "changeme",
+            "*MASKED*",
         ] {
             assert!(detected(&format!("password = {reference}"), "src/config.rs").is_empty());
         }

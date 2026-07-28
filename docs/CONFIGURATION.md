@@ -150,6 +150,8 @@ your-token-here
 your-api-key
 not-a-secret
 redacted
+masked
+*MASKED*
 <password>
 <secret>
 xxxxx
@@ -157,6 +159,8 @@ xxxxx
 ```
 
 A value composed entirely of repeated punctuation or one repeated character is not a secret finding.
+
+Use a placeholder only when a real value was intentionally removed from an example. Safe configuration values, including configuration-file paths, should remain unchanged.
 
 ## 9. Sanitized configuration errors
 
